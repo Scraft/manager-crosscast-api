@@ -19,13 +19,22 @@ namespace Manager_CrossCast_API
         public string Password { get; set; }
     }
 
+    [Serializable]
+    class QueryDetails
+    {
+        public string BusinessName { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+    }
+
     class Program
     {
-        static string kConnectionDetailsFilename = "ConnectionDetails.xml";
+        static String kConnectionDetailsFilename = "ConnectionDetails.xml";
+        static String kQueryDetailsFilename = "QueryDetails.xml";
 
         static bool WriteConnectionDetailsToFile(String host, int port, bool secure, String Username, String Password)
         {
-            ConnectionDetails connectionDetails = new ConnectionDetails();
+            var connectionDetails = new ConnectionDetails();
             connectionDetails.Host = host;
             connectionDetails.Port = port;
             connectionDetails.Secure = secure;
@@ -49,10 +58,37 @@ namespace Manager_CrossCast_API
             return connectionDetails;
         }
 
+        static bool WriteQueryDetailsToFile(String businessName, DateTime startDate, DateTime endDate)
+        {
+            var queryDetails = new QueryDetails();
+            queryDetails.BusinessName = businessName;
+            queryDetails.StartDate = startDate;
+            queryDetails.EndDate = endDate;
+            IFormatter formatter = new SoapFormatter();
+            Stream stream = new FileStream(kQueryDetailsFilename, FileMode.Create, FileAccess.Write, FileShare.None);
+            formatter.Serialize(stream, queryDetails);
+            stream.Close();
+
+            return true;
+        }
+
+        static QueryDetails ReadQueryDetailsFromFile()
+        {
+            IFormatter formatter = new SoapFormatter();
+            Stream stream = new FileStream(kQueryDetailsFilename, FileMode.Open, FileAccess.Read, FileShare.Read);
+            QueryDetails queryDetails = (QueryDetails)formatter.Deserialize(stream);
+            stream.Close();
+
+            return queryDetails;
+        }
+
         static void Main(string[] args)
         {
             // Load in connection details.
             var connectionDetails = ReadConnectionDetailsFromFile();
+
+            // Load in query details.
+            var queryDetails = ReadQueryDetailsFromFile();
 
             var manager = new Manager.RpcClient()
             {
@@ -65,9 +101,35 @@ namespace Manager_CrossCast_API
 
             var response = manager.GetBusinesses();
 
+            System.Guid? businessKey = null;
             foreach (var e in response.Businesses)
             {
-                Console.WriteLine(e.Name);
+                if (e.Name.CompareTo(queryDetails.BusinessName) == 0)
+                    businessKey = e.Key;
+            }
+
+            if (businessKey == null)
+            {
+                Console.WriteLine("Could not find business {0}", queryDetails.BusinessName);
+                Console.ReadLine();
+                return;
+            }
+            var getTransactionRequest = new Manager.GetTransactionsRequest()
+            {
+                BusinessID = businessKey.Value,
+                From = queryDetails.StartDate,
+                To = queryDetails.EndDate
+            };
+            var getTransactionsResponse = manager.GetTransactions(getTransactionRequest);
+            if (!getTransactionsResponse.OK)
+            {
+                Console.WriteLine("Bad response whilst getting transactions");
+                Console.ReadLine();
+                return;
+            }
+            foreach ( Manager.GetTransactionsResponse.Transaction transaction in getTransactionsResponse.Transactions )
+            {
+                Console.WriteLine( "{0} - {1} - {2} - {3} - {4} - {5}", transaction.Date.ToString(), transaction.Contact, transaction.Description, transaction.Reference, transaction.Account, transaction.Amount );
             }
 
             Console.ReadLine();
