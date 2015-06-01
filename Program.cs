@@ -127,10 +127,42 @@ namespace Manager_CrossCast_API
                 Console.ReadLine();
                 return;
             }
+
+            Dictionary<String, List<Manager.GetTransactionsResponse.Transaction>> categoryMap = new Dictionary<String,List<Manager.GetTransactionsResponse.Transaction>>();
+
             foreach ( Manager.GetTransactionsResponse.Transaction transaction in getTransactionsResponse.Transactions )
             {
-                Console.WriteLine( "{0} - {1} - {2} - {3} - {4} - {5}", transaction.Date.ToString(), transaction.Contact, transaction.Description, transaction.Reference, transaction.Account, transaction.Amount );
+                if (!categoryMap.ContainsKey(transaction.Account))
+                    categoryMap.Add(transaction.Account, new List<Manager.GetTransactionsResponse.Transaction>());
+                categoryMap[transaction.Account].Add(transaction);
             }
+
+            // Acquire keys and sort them.
+            var list = categoryMap.Keys.ToList();
+            list.Sort();
+
+            foreach (Manager.GetTransactionsResponse.Transaction transaction in getTransactionsResponse.Transactions)
+            {
+                if (!categoryMap.ContainsKey(transaction.Account))
+                    categoryMap.Add(transaction.Account, new List<Manager.GetTransactionsResponse.Transaction>());
+                categoryMap[transaction.Account].Add(transaction);
+                String line = String.Format("{0} - {1} - {2} - {3} - {4}", transaction.Date.ToString(), transaction.Contact, transaction.Description, transaction.Reference, transaction.Amount);
+                foreach ( var item in list )
+                {
+                    if (item.CompareTo(transaction.Account) == 0)
+                    {
+                        line += " - ";
+                        line += transaction.Amount;
+                    }
+                    else
+                    {
+                        line += " - ";
+                    }
+                }
+
+                Console.WriteLine(line);
+            }
+            
 
             Console.ReadLine();
         }
