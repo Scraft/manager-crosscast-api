@@ -114,6 +114,21 @@ namespace Manager_CrossCast_API
                 Console.ReadLine();
                 return;
             }
+
+            var getBankAccountsRequest = new Manager.GetBankAccountsRequest();
+            getBankAccountsRequest.BusinessID = businessKey.Value;
+            var getBankAccountsResponse = manager.GetBankAccounts(getBankAccountsRequest);
+            if (!getBankAccountsResponse.OK)
+            {
+                Console.WriteLine("Bad response whilst getting bank accounts");
+                Console.ReadLine();
+                return;
+            }
+            foreach (var bankAccount in getBankAccountsResponse.BankAccounts)
+            {
+                Console.WriteLine("Bank account : {0}", bankAccount.Name);
+            }
+
             var getTransactionRequest = new Manager.GetTransactionsRequest()
             {
                 BusinessID = businessKey.Value,
